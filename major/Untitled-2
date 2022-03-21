@@ -1,0 +1,7 @@
+curl "https://api.twitter.com/2/tweets/search/recent" -H 
+
+
+
+ -H "Authorization: Bearer $BEARER_TOKEN"
+
+ -H "Authorization: Bearer $BEARER_TOKEN"
