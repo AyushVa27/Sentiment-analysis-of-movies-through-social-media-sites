@@ -20,6 +20,102 @@ from sklearn.model_selection import KFold
 
 import argparse
 import os
+import json
+import requests
+import os 
+import time
+import tqdm
+import imdb
+import tweepy
+import matplotlib
+matplotlib.use('TkAgg')
+import matplotlib.pyplot as plt
+
+import plotly.express as plt
+import pandas as pd
+
+class tweepy:
+
+    response = ""
+    config = ""
+
+    def __init__(self):
+        # reading config data
+        data = open("config.json")
+        self.config = json.load(data)
+
+    def search_tweets(self,search_topic, max_results):
+        api_url = 'https://api.twitter.com/2/tweets/search/recent'
+        headers = {
+            'Authorization': 'Bearer ' + self.config['Bearer_token']
+        }
+        params = (
+            ('query', search_topic),
+            ('max_results', max_results)
+        )
+
+        api_response = requests.get(api_url, headers=headers, params=params)
+        print("......Getting Tweeet Response")
+        for i in tqdm.tqdm (range(int(max_results)), desc="Loading..."):
+            time.sleep(0.05)
+
+        print(api_response)
+        self.response = api_response.json()
+
+        return self.response
+
+    def generate_data_file(self,file_name,print_each_line = False):
+        if self.response == "": return False
+
+        dirPath = os.getcwd()
+        newPath = dirPath + f"/Data/{file_name}.txt"
+
+        with open(newPath,'a') as file_object:
+            for index,data in enumerate(self.response['data'],1):
+                build_string = ""
+                build_string += str(index) + " "
+                build_string += data['text'] + "\n"
+                
+                if print_each_line: print(build_string)
+                file_object.writelines(build_string)
+
+        return True
+            
+topic_name = input("Enter movie to search : ")
+#number_of_tweets = input("Number of tweets [10-100] : ")
+print_tweets = input("Print tweets fetcheed [True/False] : ")
+print_response = input("Print Response Content [True/False] : ")
+
+test = tweepy()
+test.search_tweets(topic_name,10)
+if print_response.lower() == "true" : print(test.response)
+test.generate_data_file(topic_name,print_tweets.lower() == "true")
+
+#imdb part
+moviesDB = imdb.IMDb()
+
+movies = moviesDB.search_movie(topic_name)
+id = movies[0].getID()
+movie = moviesDB.get_movie(id)
+
+title = movie['title']
+year = movie['year']
+rating = movie['rating']
+directors = movie['directors']
+casting = movie['cast']
+
+print('Movie info:')
+print(f'{title} - {year}')
+print(f'rating: {rating}')
+
+direcStr = ' '.join(map(str,directors))
+print(f'directors: {direcStr}')
+
+actors = ', '.join(map(str, casting))
+print(f'actors: {actors}')
+
+# frequency part
+
 
 # Variables Initialization
 vNegative = []
@@ -426,7 +522,29 @@ if __name__ == "__main__":
     negative_sentiment = FeaturizeTrainingData(negative_data,"negative")
     final_data = positive_sentiment + negative_sentiment
     final_data = np.reshape(np.asarray(final_data),newshape=(len(final_data),5))
-
+    
+    ps=len(positive_sentiment)
+    
+    
+    ns=len(negative_sentiment)
+    ts=ns+ps
+    tweetrating=((ps/ts)*10)+3
+    if tweetrating >=10:
+        tweetrating=9.8
+    print("twitter rating ")
+    print("{:.1f}".format(tweetrating))
+    print("IMDb rating")
+    print(f'rating: {rating}')
+    #xaxis=[rating,tweetrating]
+    #plt.bar(xaxis,10)
+    #plt.show
+    data = [["Twitter", tweetrating], ["IMDB",rating]]
+    df = pd.DataFrame(data, columns = ['Name', 'Rating'])
+    fig = plt.bar(df, x='Name', y='Rating', color = "Name", color_discrete_map={
+                "Twitter": "Blue",
+                "IMDB": "Orange"}, title="IMDB vs Twitter Rating")
+    fig.update_layout(yaxis_range=[0,10])
+    fig.show()
     #Split Data into Features and Classes
     data_X = final_data[:,:4].astype(int)
     data_Y = final_data[:,4]
